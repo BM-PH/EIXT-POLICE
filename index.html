@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>엑시트 경찰청 법률계산기</title>
+  <title>Premium Purple Calculator</title>
   <style>
     :root {
       --bg: #050508;
@@ -34,14 +34,6 @@
     .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; backdrop-filter: blur(15px); }
     .card-hd { padding: 20px; border-bottom: 1px solid var(--border); background: rgba(168, 85, 247, 0.08); }
 
-    /* Discord Name 입력창 스타일 */
-    .user-info { padding: 0 20px 20px; display: flex; gap: 10px; }
-    .input-field { 
-      background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: white; 
-      padding: 12px; border-radius: 12px; width: 100%; outline: none; transition: 0.2s;
-    }
-    .input-field:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
-
     .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
     .tab {
       padding: 10px 18px; border-radius: 12px; border: 1px solid var(--border);
@@ -55,26 +47,46 @@
       padding: 18px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 16px; transition: 0.2s; cursor: pointer;
     }
     .item:hover { border-color: var(--accent); background: rgba(168, 85, 247, 0.1); transform: translateX(5px); }
-    .item.selected { border: 1px solid var(--accent); background: rgba(168, 85, 247, 0.15); box-shadow: 0 0 15px rgba(168, 85, 247, 0.1); }
+    .item.selected { border-left: 5px solid var(--accent); background: rgba(168, 85, 247, 0.05); }
 
-    .check-mark { color: var(--accent); font-size: 20px; font-weight: 900; opacity: 0; transition: 0.2s; }
-    .item.selected .check-mark { opacity: 1; }
+    .item-info .name { font-weight: 700; font-size: 16px; color: #fff; }
+    .item-info .details { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
+    .qty-badge { background: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 14px; display: none; }
+    .item.selected .qty-badge { display: block; }
+
+    /* 숫자 선택 팝업 레이어 */
+    #qtyPicker {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+      display: none; justify-content: center; align-items: center; z-index: 10000;
+    }
+    .picker-card {
+      background: #12121c; border: 1px solid var(--accent); border-radius: 24px;
+      padding: 30px; width: 340px; text-align: center; box-shadow: 0 0 30px var(--accent-glow);
+    }
+    .picker-input {
+      width: 100%; background: #000; border: 1px solid var(--border); color: white;
+      padding: 15px; border-radius: 12px; font-size: 24px; font-weight: 900; text-align: center;
+      margin: 20px 0; outline: none; transition: 0.2s;
+    }
+    .picker-input:focus { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
+
+    /* 버튼 그룹 가로 배치 */
+    .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+    .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; width: 100%; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); margin-top: 10px; }
+
+    /* 통계 영역 */
     .metric-card { padding: 24px; border-radius: 18px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); margin-bottom: 20px; }
     .metric-card.highlight { border-color: var(--accent); background: rgba(168, 85, 247, 0.05); }
     .metric-card.warning { border-color: var(--danger); background: rgba(244, 63, 94, 0.05); }
     .metric-card .label { font-size: 12px; color: var(--accent); font-weight: 800; margin-bottom: 8px; }
     .metric-card.warning .label { color: var(--danger); }
     .metric-card .value { font-size: 28px; font-weight: 900; }
-    
-    .detention-warning { color: var(--danger); font-size: 13px; font-weight: 800; margin-top: 10px; display: none; animation: blink 1s infinite; }
-    @keyframes blink { 50% { opacity: 0.5; } }
-
     .ko-read { font-size: 12px; color: var(--muted); margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
-
-    .btn { padding: 12px 24px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 
     #copyToast {
       position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
@@ -87,23 +99,31 @@
 </head>
 <body>
 
+  <div id="qtyPicker">
+    <div class="picker-card">
+      <h2 id="pickerTitle" style="font-size: 18px; margin: 0; color: #fff;">수량 입력</h2>
+      <input type="number" id="pickerValue" class="picker-input" placeholder="0" min="0" onkeydown="if(event.key==='Enter') confirmQty()">
+      
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="confirmQty()">확인</button>
+        <button class="btn btn-danger" onclick="cancelItem()">선택 해제</button>
+      </div>
+      <button class="btn btn-ghost" onclick="hidePicker()">닫기 (ESC)</button>
+    </div>
+  </div>
+
   <div class="wrap">
     <header>
       <h1>엑시트 경찰청 법률계산기</h1>
       <div style="display: flex; gap: 10px;">
-        <button class="btn btn-ghost" onclick="location.reload()">초기화</button>
-        <button class="btn btn-primary" id="btnCopy">법률리스트 복사</button>
+        <button class="btn btn-ghost" style="width: auto; margin-top: 0;" onclick="location.reload()">초기화</button>
+        <button class="btn btn-primary" style="width: auto; margin-top: 0;" id="btnCopy">법률리스트 복사</button>
       </div>
     </header>
 
     <div class="grid">
       <section class="card">
-        <div class="card-hd">
-          <div class="user-info">
-            <input type="text" id="discordName" class="input-field" placeholder="Discord Name을 입력하세요">
-          </div>
-          <div class="tabs" id="tabs"></div>
-        </div>
+        <div class="card-hd"><div class="tabs" id="tabs"></div></div>
         <div class="item-list" id="crimeList"></div>
       </section>
 
@@ -120,12 +140,12 @@
             <div class="metric-card" id="timeCard">
               <div class="label">최종 구금 시간</div>
               <div class="value" id="totalTime">0분</div>
-              <div class="detention-warning" id="timeWarning">⚠️ 최대 구금 시간(120분) 초과!</div>
+              <div id="timeWarning" style="color: #f43f5e; font-size: 11px; margin-top: 8px; display: none; font-weight: 800;">⚠️ 최대 시간(120분) 초과!</div>
             </div>
 
             <div class="metric-card">
               <div class="label">보석금 (분당 500만)</div>
-              <input type="number" id="bailMinutes" class="input-field" value="0" min="0" />
+              <input type="number" id="bailMinutes" value="0" min="0" style="width: 100%; background: #000; border: 1px solid var(--border); color: white; padding: 10px; border-radius: 10px; outline: none;" />
               <div class="ko-read" id="bailSub">보석금: 0원</div>
             </div>
             <div id="summaryRows" style="font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 15px;"></div>
@@ -177,6 +197,7 @@
   };
 
   let activeCategory = Object.keys(DATA)[0];
+  let currentTargetKey = null;
   const state = new Map();
 
   function convertToKo(num) {
@@ -199,9 +220,9 @@
   function update(){
     let fRaw = 0, tRaw = 0; let rows = "";
     state.forEach((st) => {
-      if(st.checked){
-        fRaw += st.item.fine; tRaw += st.item.time;
-        rows += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>${st.item.name}</span><span>${st.item.fine.toLocaleString()}원</span></div>`;
+      if(st.checked && st.qty > 0){
+        fRaw += st.item.fine * st.qty; tRaw += st.item.time * st.qty;
+        rows += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>${st.item.name} x${st.qty}</span><span>${(st.item.fine*st.qty).toLocaleString()}원</span></div>`;
       }
     });
 
@@ -227,19 +248,70 @@
     }
   }
 
-  function toggleItem(cat, name) {
+  // 전역 단축키 처리 (ESC)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const picker = document.getElementById("qtyPicker");
+      if (picker.style.display === "flex") hidePicker();
+    }
+  });
+
+  function handleItemClick(cat, name) {
     const key = `${cat}::${name}`;
     const st = state.get(key);
-    st.checked = !st.checked;
-    renderList();
-    update();
+
+    // [핵심 변경] 이미 선택된 상태(qty > 0)면 클릭 시 토글 해제
+    if (st && st.checked && st.qty > 0) {
+      st.checked = false;
+      st.qty = 0;
+      renderList();
+      update();
+    } else {
+      showPicker(cat, name);
+    }
+  }
+
+  function showPicker(cat, name) {
+    currentTargetKey = `${cat}::${name}`;
+    const st = state.get(currentTargetKey);
+    document.getElementById("pickerTitle").textContent = name;
+    document.getElementById("pickerValue").value = (st && st.qty > 0) ? st.qty : 1;
+    document.getElementById("qtyPicker").style.display = "flex";
+    
+    const input = document.getElementById("pickerValue");
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 10);
+  }
+
+  function hidePicker() { document.getElementById("qtyPicker").style.display = "none"; }
+
+  function confirmQty() {
+    const val = parseInt(document.getElementById("pickerValue").value);
+    const st = state.get(currentTargetKey);
+    if (val > 0) {
+      st.checked = true;
+      st.qty = val;
+    } else {
+      st.checked = false;
+      st.qty = 0;
+    }
+    hidePicker(); renderList(); update();
+  }
+
+  function cancelItem() {
+    const st = state.get(currentTargetKey);
+    st.checked = false;
+    st.qty = 0;
+    hidePicker(); renderList(); update();
   }
 
   function renderList(){
     const $list = document.getElementById("crimeList"); $list.innerHTML = "";
     DATA[activeCategory].forEach(item => {
       const key = `${activeCategory}::${item.name}`;
-      if(!state.has(key)) state.set(key, { checked:false, item });
+      if(!state.has(key)) state.set(key, { checked:false, qty:0, item });
       const st = state.get(key);
       const el = document.createElement("div");
       el.className = `item ${st.checked?'selected':''}`;
@@ -248,9 +320,9 @@
           <div class="name">${item.name}</div>
           <div class="details">${item.fine.toLocaleString()}원 / ${item.time}분</div>
         </div>
-        <div class="check-mark">✓</div>
+        <div class="qty-badge">x${st.qty}</div>
       `;
-      el.onclick = () => toggleItem(activeCategory, item.name);
+      el.onclick = () => handleItemClick(activeCategory, item.name);
       $list.appendChild(el);
     });
   }
@@ -267,15 +339,9 @@
   document.getElementById("bailMinutes").oninput = update;
 
   document.getElementById("btnCopy").onclick = async () => {
-    const dName = document.getElementById("discordName").value || "미입력";
-    let t = `[벌금 산정 내역]\n`;
-    t += `Discord Name: ${dName}\n`;
-    t += `----------------------------\n`;
-    state.forEach(st => { if(st.checked){ t += `- ${st.item.name} (${st.item.fine.toLocaleString()}원 / ${st.item.time}분)\n`; }});
-    t += `----------------------------\n`;
-    t += `최종 벌금: ${document.getElementById("totalFine").textContent}\n`;
-    t += `구금 시간: ${document.getElementById("totalTime").textContent}`;
-    
+    let t = "[벌금 산정 내역]\n\n";
+    state.forEach(st => { if(st.checked && st.qty > 0){ t += `- ${st.item.name} x${st.qty} (${(st.item.fine*st.qty).toLocaleString()}원 / ${st.item.time*st.qty}분)\n`; }});
+    t += `\n최종 벌금: ${document.getElementById("totalFine").textContent}\n구금 시간: ${document.getElementById("totalTime").textContent}`;
     await navigator.clipboard.writeText(t);
     const toast = document.getElementById("copyToast"); const bar = document.getElementById("toastBar");
     toast.classList.add("show"); bar.style.width = "0%";
